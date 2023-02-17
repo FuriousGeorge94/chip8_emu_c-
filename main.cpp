@@ -1,26 +1,13 @@
 #include "Chip8.cpp"
+#include "Graphics.h"
 
-void draw(SDL_Renderer *renderer, Chip8 chip8, SDL_Texture *texture){
-  SDL_UpdateTexture(texture, nullptr, chip8.screen, 4*64);
-  SDL_RenderClear(renderer);
-  SDL_RenderCopy(renderer, texture, nullptr, nullptr);
-  SDL_RenderPresent(renderer);
-}
 
 #define WINDOW_WIDTH   1024 
 #define WINDOW_HEIGHT  512
 int main(){
 
-    SDL_Event event;
-    SDL_Renderer *renderer{};
-    SDL_Window *window{};
-    SDL_Texture *texture{};
-
-    //create window, renderer and texture
-    window = SDL_CreateWindow("chip_8", 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, 64, 32);
-
+  SDL_Event event;
+  Graphics graphics;
   // initialize emulator
   Chip8 chip8; ; 
   chip8.LoadROM("./roms/chip8-test-suite.ch8");
@@ -125,7 +112,6 @@ int main(){
     // display sprite on screen
     else if(id == 0xD){
       chip8.OP_Dxyn();
-      draw(renderer, chip8, texture);
     }
     // skip if key operations
     else if(id == 0xE){
@@ -167,11 +153,10 @@ int main(){
     }
     if (SDL_PollEvent(&event) && event.type == SDL_QUIT)
         break;
+   graphics.draw(chip8);
   }
-  SDL_DestroyRenderer(renderer);
-  SDL_DestroyWindow(window);
-  SDL_DestroyTexture(texture);
-  SDL_Quit();
+
+  graphics.exit();
   return 0;
 }
 
