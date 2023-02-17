@@ -1,37 +1,25 @@
 #include "Chip8.cpp"
 
-void draw(SDL_Renderer *renderer, SDL_Window *window, int height, int width, Chip8 emu){
-    SDL_Rect rect;
-    rect.w = height;
-    rect.h = width;
-    for(int i = 0; i < 32; i++){
-      for(int j = 0; j < 64; j++){
-        if(emu.screen[j +(i*65)] == 1){
-        //if((j%2 == 0) && (i%2 == 1)){
-            rect.x = j*16;
-            rect.y = i*16;
-            SDL_RenderFillRect(renderer, &rect);
-            SDL_RenderPresent(renderer);
-        }
-      }
-    }
-
-  }
+void draw(SDL_Renderer *renderer, Chip8 chip8, SDL_Texture *texture){
+  SDL_UpdateTexture(texture, nullptr, chip8.screen, 4*64);
+  SDL_RenderClear(renderer);
+  SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+  SDL_RenderPresent(renderer);
+}
 
 #define WINDOW_WIDTH   1024 
 #define WINDOW_HEIGHT  512
 int main(){
 
     SDL_Event event;
-    SDL_Renderer *renderer;
-    SDL_Window *window;
-    int i;
+    SDL_Renderer *renderer{};
+    SDL_Window *window{};
+    SDL_Texture *texture{};
 
-    SDL_Init(SDL_INIT_VIDEO);
-    SDL_CreateWindowAndRenderer(WINDOW_WIDTH, WINDOW_HEIGHT, 0, &window, &renderer);
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
-    SDL_RenderClear(renderer);
-    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 0);
+    //create window, renderer and texture
+    window = SDL_CreateWindow("chip_8", 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, 64, 32);
 
   // initialize emulator
   Chip8 chip8; ; 
@@ -46,7 +34,6 @@ int main(){
     
     std::bitset<16> x(chip8.opcode);
     std::bitset<8> y(id);
-
     //cout << x << " " << y << "\n";
     //printf("pc:%0x %0x\n", chip8.pc, chip8.opcode);
     if(id == 0){
@@ -68,23 +55,34 @@ int main(){
     }
     else if(id == 0xD){
       chip8.OP_Dxyn();
-    
-      draw(renderer, window,16, 16, chip8);
+      draw(renderer, chip8, texture);
+
     }else{
       printf("unemplemented instruction: %0x\n", id);
     }
     chip8.pc +=2;
 
-  SDL_RenderPresent(renderer);
   }
 
-  //draw(renderer, window,16, 16, chip8);
   while (1) {
       if (SDL_PollEvent(&event) && event.type == SDL_QUIT)
           break;
   }
+  //for (int i = 0; i < (sizeof(chip8.screen)/sizeof(uint32_t)); i++){
+      //if(i%64 == 0){
+        //printf(" %d\n", i);
+      //}
+      //if(chip8.screen[i]){
+        //printf("#");
+      //}else{
+        //printf("-");
+      //}
+    //}
+
+  
   SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);
+  SDL_DestroyTexture(texture);
   SDL_Quit();
 
   return 0;
