@@ -26,6 +26,7 @@ class Chip8
 
 
     Chip8();
+    void fetch_and_decode();
     void LoadROM(char const* filename);
     void OP_00E0();
     void OP_00EE();
@@ -448,5 +449,140 @@ void Chip8::OP_Fx65()
   for(int i = 0; i <= valx; i++){
      registers[i] = memory[index + i];
   }
+}
+
+
+void Chip8::fetch_and_decode(){
+    // fetch and decode instructions
+    uint16_t nib1  =  memory[pc];
+    uint16_t nib2  =  memory[pc+1];
+    opcode = (nib1<<8) | nib2;
+    uint8_t id = (opcode >> 12) ;
+    
+    pc +=2;
+    if(id == 0){
+      if(nib2 == 0xE0){
+        OP_00E0();
+      }else{
+        OP_00EE();
+      }
+    }
+    // jump
+    else if(id == 0x1){
+      OP_1nnn();
+    }
+    //subroutines
+    else if(id == 0x2){
+      OP_2nnn();
+    }
+    //skip equal to x and nn
+    else if(id == 0x3){
+      OP_3xnn();
+    }
+    //skip not equal to x and nn
+    else if(id == 0x4){
+      OP_4xnn();
+    }
+    // skip equal to x and y
+    else if(id == 0x5){
+      OP_5xy0();
+    }
+    // set register
+    else if(id == 0x6){
+      OP_6xkk();
+    }
+    // add
+    else if(id == 0x7){
+      OP_7xkk();
+    }
+    else if(id == 0x8){
+      uint8_t last_nibb = opcode & 0x000F;
+      if(last_nibb == 0x0){
+        OP_8xy0();
+      } 
+      // binary or
+      else if(last_nibb == 0x1){
+        OP_8xy1();
+      }
+      // binary and
+      else if(last_nibb == 0x2){
+        OP_8xy2();
+      }
+      // logical xor
+      else if(last_nibb == 0x3){
+        OP_8xy3();
+      }
+      // add
+      else if(last_nibb == 0x4){
+        OP_8xy4();
+      }
+      // sub x - y
+      else if(last_nibb == 0x5){
+        OP_8xy5();
+      }
+      // shift right
+      else if(last_nibb == 0x6){
+        OP_8xy6();
+      }
+      // sub y - x
+      else if(last_nibb == 0x7){
+        OP_8xy7();
+      }
+      // shift left
+      else if(last_nibb == 0xE){
+        OP_8xyE();
+      }
+    }
+    // skip if x and y not equal
+    else if(id == 0x9){
+      OP_9xy0();
+    }
+    // set index
+    else if(id == 0xA){
+      OP_Annn();
+    }
+    // random num generator
+    else if(id == 0xC){
+      OP_Cxnn();
+    }
+    // display sprite on screen
+    else if(id == 0xD){
+      OP_Dxyn();
+    }
+    // skip if key operations
+    else if(id == 0xE){
+      if((opcode & 0x0FF) == 0x9E){
+        OP_Ex9E();
+      }else{
+        OP_ExA1();
+      }
+    }
+    // timer operatons
+    else if(id == 0xF){
+      uint16_t end_nibb = opcode & 0x0FF;
+      if(end_nibb == 0x7){
+        OP_Fx07();
+      }
+      else if(end_nibb == 0x15){
+        OP_Fx15();
+      }
+      else if(end_nibb == 0x18){
+        OP_Fx18();
+      }
+      else if(end_nibb == 0x33){
+        OP_Fx33();
+      }
+      else if(end_nibb == 0x55){
+        OP_Fx55();
+      }
+      else if(end_nibb == 0x65){
+        OP_Fx65();
+      }
+      // Font loading
+      else{
+        OP_Fx29();
+      }
+    }
+
 }
 
