@@ -16,8 +16,9 @@ class Chip8
     uint8_t  memory[4096]{};
     uint16_t index{};
     uint16_t pc{};
-    std::stack<uint16_t> stack; 
-    uint8_t  sp{};
+    uint16_t sp{};
+    //std::stack<uint16_t> stack; 
+    uint16_t stack[16]{};
     uint8_t  delaytimer{};
     uint8_t  soundtimer{};
     uint8_t  keys[16]{};
@@ -48,6 +49,7 @@ class Chip8
     void OP_8xyE();
     void OP_9xy0();
     void OP_Annn();
+    void OP_Bnnn();
     void OP_Cxnn();
     void OP_Dxyn();
     void OP_Ex9E();
@@ -98,6 +100,7 @@ const unsigned int FONTSET_START_ADDR = 0x50;
 // initialize program counter
 Chip8::Chip8(){
   pc = START_ADDR;
+  memory[0x1ff] = 2; 
   for (unsigned int i = 0; i < FONTSET_SIZE; ++i)
   {
     memory[FONTSET_START_ADDR+i] = fontset[i];
@@ -141,8 +144,9 @@ void Chip8::OP_00E0()
 // returns from subroutine by popping old pc's value of the stack
 void Chip8::OP_00EE()
 {
-  pc = stack.top();
-  stack.pop();
+  --sp;
+  pc = stack[sp];
+  //printf("return adrr:%0x\n", pc);
 }
 
 // Jump to nnn
@@ -156,7 +160,8 @@ void Chip8::OP_1nnn()
 void Chip8::OP_2nnn()
 {
   uint16_t subroutine_start = opcode & 0x0FFFu;
-  stack.push(pc);
+  stack[sp] = pc;
+  ++sp;
   pc = subroutine_start;
 }
 
@@ -184,7 +189,7 @@ void Chip8::OP_4xnn()
 void Chip8::OP_5xy0()
 {
   uint8_t  reg_x = (opcode & 0x0F00u) >> 8u;
-  uint8_t  reg_y = (opcode & 0x00F0u);
+  uint8_t  reg_y = (opcode & 0x00F0u) >> 4u;
   if(registers[reg_x] == registers[reg_y]){
     pc += 2;
   }
@@ -203,9 +208,8 @@ void Chip8::OP_6xkk()
 void Chip8::OP_7xkk()
 {
   uint16_t value          = opcode & 0x00FFu;
-  uint8_t  target_addr    = (opcode & 0x0F00u)>>8;
-  uint16_t reg_add_result = value + registers[target_addr];
-  registers[target_addr]  = reg_add_result;
+  uint8_t  reg_x          = (opcode & 0x0F00u)>>8;
+  registers[reg_x]        += value;
 }
 
 // val at register x is set to val at register y
@@ -221,9 +225,7 @@ void Chip8::OP_8xy1()
 {
   uint8_t  reg_x = (opcode & 0x0F00u) >> 8u;
   uint8_t  reg_y = (opcode & 0x00F0u) >> 4u;
-  //printf("x = %0x, y = %0x ",registers[reg_x], registers[reg_y]);
   registers[reg_x] = registers[reg_x] | registers[reg_y];
-  //printf("x|y = %0x\n ",registers[reg_x]);
 }
 
 // val at register x is set to the and of itself and val at register y
@@ -244,15 +246,20 @@ void Chip8::OP_8xy3()
 
 // val at register x is added and val at register y and stored in
 // register x
+// TODO maybe needs fixing
 void Chip8::OP_8xy4()
 {
   uint8_t  reg_x = (opcode & 0x0F00u) >> 8u;
   uint8_t  reg_y = (opcode & 0x00F0u) >> 4u;
-  printf("reg_x: %0x, reg_y: %0x\n", reg_x, reg_y);
-  if (((int) registers[reg_x] + (int) registers[reg_y]) > 255){
+  
+  uint16_t sum = registers[reg_x] + registers[reg_y];
+  if (sum > 255U){
     registers[0xF] = 1; 
+  }else{
+    registers[0xF] = 0; 
   }
-  registers[reg_x] += registers[reg_y];
+  registers[reg_x] = sum & 0xFFu;
+  
 }
 
 // val at register x is subrtracted with val at register y and stored
@@ -273,7 +280,8 @@ void Chip8::OP_8xy5()
 void Chip8::OP_8xy6()
 {
   uint8_t  reg_x = (opcode & 0x0F00u) >> 8u;
-  uint8_t  reg_y = (opcode & 0x00F0u) >> 4u;
+  
+  registers[0xF] =  (registers[reg_x] & 0x1u) ;
   registers[reg_x] >>= 1;
 }
 
@@ -288,8 +296,8 @@ void Chip8::OP_8xy7()
     registers[0xF] = 1; 
   }else{
     registers[0xF] = 0;
-    registers[reg_x] = registers[reg_y] - registers[reg_x];
   }
+    registers[reg_x] = registers[reg_y] - registers[reg_x];
 }
 
 
@@ -297,8 +305,10 @@ void Chip8::OP_8xy7()
 void Chip8::OP_8xyE()
 {
   uint8_t  reg_x = (opcode & 0x0F00u) >> 8u;
-  uint8_t  reg_y = (opcode & 0x00F0u) >> 4u;
+  registers[0xF] =  (registers[reg_x] & 0x80u) >> 7u;
   registers[reg_x] <<= 1;
+
+  
 }
 
 // skips instruction if val in register x doesn't equal
@@ -312,19 +322,25 @@ void Chip8::OP_9xy0()
   }
 }
 
-// Stores nnn in register 
+// Stores nnn in index register
 void Chip8::OP_Annn()
 {
   uint16_t value = opcode & 0x0FFFu;
   index = value;
 }
 
+void Chip8::OP_Bnnn()
+{
+  uint8_t jump_addr = (opcode & 0x0FFFu) ;
+  pc = registers[0] + jump_addr;
+}
+
 
 void Chip8::OP_Cxnn()
 {
   uint16_t val   = opcode & 0x00FFu;
-  uint8_t  reg_x = opcode & 0x0F00u;
-  uint16_t rand_num = rand() % 255u;
+  uint8_t  reg_x = (opcode & 0x0F00u)>>8u;
+  uint16_t rand_num = rand() % 255U;
   registers[reg_x] = val & rand_num;
 }
 
@@ -333,15 +349,17 @@ void Chip8::OP_Cxnn()
 #define SCREEN_WIDTH  64
 void Chip8::OP_Dxyn()
 {
+  //printf("draw\n");
   uint8_t  sprite_height = opcode & 0x000Fu;
   uint8_t  x_value     = (opcode & 0x0F00u)>>8u;
   uint8_t  y_value     = (opcode & 0x00F0u)>>4u;
-  uint8_t  screen_x  = registers[x_value] ;
-  uint8_t  screen_y  = registers[y_value] ;
+  uint8_t  screen_x    = registers[x_value] ;
+  uint8_t  screen_y    = registers[y_value] ;
+  //printf("x: %0x, y: %0x\n", screen_x, screen_y);
 
   registers[0xf] = 0;
   uint32_t start_idx = (64*screen_y) + screen_x;
-
+  //printf("before\n");
   for(int i = 0; i < sprite_height;i++){
     uint32_t screen_idx = start_idx + i*64;
     uint8_t mask_byte = memory[index+i];
@@ -355,41 +373,49 @@ void Chip8::OP_Dxyn()
         }
         screen[screen_idx+j]  = screen[screen_idx+j] ^ 0xFFFFFFFF;
       }
+     }
     }
-  }
+
  }
 
+// skip if key is not pressed
 void Chip8::OP_Ex9E()
 {
-  uint8_t  reg_x = opcode & 0x0F00u;
+  uint8_t reg_x = (opcode & 0x0F00u) >> 8u;
+  //printf("key: %0x\n", registers[reg_x]);
   if(keys[registers[reg_x]]){
     pc += 2;
   }
 }
 
+// skip if key is not pressed
 void Chip8::OP_ExA1()
 {
-  uint8_t  reg_x = opcode & 0x0F00u;
+  uint8_t reg_x = (opcode & 0x0F00u) >> 8u;
+  //printf("key: %0x\n", registers[reg_x]);
   if(!keys[registers[reg_x]]){
     pc += 2;
   }
 }
 
+// sets val in register x to display timeer
 void Chip8::OP_Fx07()
 {
-  uint8_t reg_x = opcode & 0x0F00u;
+  uint8_t reg_x = (opcode & 0x0F00u) >> 8u;
   registers[reg_x] = delaytimer;
+  //printf("fx07: %d\n", registers[reg_x]);
 }
 
 void Chip8::OP_Fx15()
 {
-  uint8_t reg_x = opcode & 0x0F00u;
+  uint8_t reg_x = (opcode & 0x0F00u) >> 8u;
   delaytimer = registers[reg_x];
+  //printf("f15: %d\n", delaytimer);
 }
 
 void Chip8::OP_Fx18()
 {
-  uint8_t reg_x = opcode & 0x0F00u;
+  uint8_t reg_x = (opcode & 0x0F00u) >> 8u;
   soundtimer  = registers[reg_x];
 }
 
@@ -397,31 +423,100 @@ void Chip8::OP_Fx18()
 // result in the index register
 void Chip8::OP_Fx1E()
 {
-  uint8_t reg_x = opcode & 0x0F00u;
+  uint8_t reg_x = (opcode & 0x0F00u) >> 8u;
   index += registers[reg_x];
 }
 
 // TODO: impliment keys
 void Chip8::OP_Fx0A()
 {
-  uint8_t reg_x = opcode & 0x0F00u;
-  printf("keys need implementing");
+  uint8_t reg_x = (opcode & 0x0F00u) >> 8u;
+  if (keys[0])
+	{
+		registers[reg_x] = 0;
+    //printf("key 0\n");
+	}
+	else if (keys[1])
+	{
+    //printf("key 1\n");
+		registers[reg_x] = 1;
+	}
+	else if (keys[2])
+	{
+		registers[reg_x] = 2;
+	}
+	else if (keys[3])
+	{
+		registers[reg_x] = 3;
+	}
+	else if (keys[4])
+	{
+		registers[reg_x] = 4;
+	}
+	else if (keys[5])
+	{
+		registers[reg_x] = 5;
+	}
+	else if (keys[6])
+	{
+		registers[reg_x] = 6;
+	}
+	else if (keys[7])
+	{
+		registers[reg_x] = 7;
+	}
+	else if (keys[8])
+	{
+		registers[reg_x] = 8;
+	}
+	else if (keys[9])
+	{
+		registers[reg_x] = 9;
+	}
+	else if (keys[10])
+	{
+		registers[reg_x] = 10;
+	}
+	else if (keys[11])
+	{
+		registers[reg_x] = 11;
+	}
+	else if (keys[12])
+	{
+		registers[reg_x] = 12;
+	}
+	else if (keys[13])
+	{
+		registers[reg_x] = 13;
+	}
+	else if (keys[14])
+	{
+		registers[reg_x] = 14;
+	}
+	else if (keys[15])
+	{
+		registers[reg_x] = 15;
+	}
+	else
+	{
+		pc -= 2;
+	}
 }
 
 
 // Font loading
 void Chip8::OP_Fx29()
 {
-  uint8_t reg_x = (opcode & 0x0F00u)>>8;
-  int char_val = registers[reg_x];
-  int font_adress = char_val * 5;
-  index = fontset[font_adress];
+  uint8_t reg_x = (opcode & 0x0F00u)>>8u;
+  uint8_t char_val = registers[reg_x];
+  index = 0x50 + char_val*0x5u;
+  //printf("%0x + %0x = %0x\n",FONTSET_START_ADDR, (5*char_val) , index);
 }
 
 //binary coded decimal conversion
 void Chip8::OP_Fx33()
 {
-  uint8_t reg_x = (opcode & 0x0F00u)>>8;
+  uint8_t reg_x = (opcode & 0x0F00u)>>8u;
   uint16_t dec_num = registers[reg_x];
   int ones_place = dec_num%10;
   memory[index+2] = ones_place;
@@ -436,8 +531,8 @@ void Chip8::OP_Fx33()
 // store registers to memory
 void Chip8::OP_Fx55()
 {
-  uint8_t valx = (opcode & 0x0F00u)>>8;
-  for(int i = 0; i <= valx; i++){
+  uint8_t valx = (opcode & 0x0F00u)>>8u;
+  for(uint8_t i = 0; i <= valx; i++){
     memory[index + i] = registers[i];
   }
 }
@@ -445,10 +540,12 @@ void Chip8::OP_Fx55()
 //  registers[0::x] inclusive
 void Chip8::OP_Fx65()
 {
-  uint8_t valx = (opcode & 0x0F00u)>>8;
-  for(int i = 0; i <= valx; i++){
+  uint8_t valx = (opcode & 0x0F00u)>>8u;
+  for(uint8_t i = 0; i <= valx; i++){
      registers[i] = memory[index + i];
+     //printf("%d: %0x |", i, registers[i]);
   }
+  //printf("\n");
 }
 
 
@@ -459,11 +556,13 @@ void Chip8::fetch_and_decode(){
     opcode = (nib1<<8) | nib2;
     uint8_t id = (opcode >> 12) ;
     
+    //printf("%0x\n",opcode);
     pc +=2;
     if(id == 0){
+      //printf("%0x%0x%0x\n", id, nib1,nib2);
       if(nib2 == 0xE0){
         OP_00E0();
-      }else{
+      }else if(nib2 == 0xEE){
         OP_00EE();
       }
     }
@@ -566,7 +665,7 @@ void Chip8::fetch_and_decode(){
       else if(end_nibb == 0x15){
         OP_Fx15();
       }
-      else if(end_nibb == 0x18){
+        else if(end_nibb == 0x18){
         OP_Fx18();
       }
       else if(end_nibb == 0x33){
@@ -578,11 +677,13 @@ void Chip8::fetch_and_decode(){
       else if(end_nibb == 0x65){
         OP_Fx65();
       }
+      else if(end_nibb == 0x0A){
+        OP_Fx0A();
+      }
       // Font loading
       else{
         OP_Fx29();
       }
     }
-
 }
 

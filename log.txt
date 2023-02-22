@@ -1,0 +1,53 @@
+1270
+e0a1
+7001
+4010
+ee
+e0
+6d0a set reg[13] = 10
+6e01 set reg[14] = 01
+abdb set i = bdb
+2344 call subroutine at 344
+fc65 0: 68 | 1: 4c | 2: 34 | 3: 54 | 4: 94 | 5: 2c | 6: 94 | 7: 78 | 8: 3c | 9: 74 | 10: 78 | 11: 0 | 12: 8
+23aa call subroutine at 3aa
+ac22 set i = c22
+f01e i = c22 + 68
+dde4
+x: 10, y: 1
+7d04
+ee
+4100
+8010
+23aa
+ac22
+f01e
+dde4
+x: 14, y: 1
+
+
+-------------------------------------------------------
+127c jump to 27c
+fooa wait for keypress
+226e calls subroutine at 26e
+6000 set reg 0 to 0x00
+e0a1 skips if key in vx is not pressed
+1270
+e0a1
+1270
+e0a1
+1270
+e0a1
+1270
+e0a1
+7001
+4010
+1270
+e0a1
+7001
+4010
+1270
+e0a1
+7001
+4010
+1270
+e

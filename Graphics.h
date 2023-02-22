@@ -1,7 +1,7 @@
 class Graphics{
 
-#define WINDOW_HEIGHT  512
-#define WINDOW_WIDTH   1024 
+#define WINDOW_HEIGHT  500
+#define WINDOW_WIDTH   1000 
   
   public:
     Graphics();
